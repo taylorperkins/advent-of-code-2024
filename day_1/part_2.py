@@ -10,6 +10,8 @@ pattern = re.compile(r'^(?P<n1>\d+)\s+(?P<n2>\d+)?$')
 @time_it
 def main(data: str) -> str:
 
+    # Each line in the input is like: `123   456`
+    # Treat it like a matrix having two columns (vectors), v1 and v2
     v1, v2 = [], []
     for line in data.splitlines():
         m = pattern.match(line)
@@ -19,8 +21,10 @@ def main(data: str) -> str:
         n1, n2 = m.group("n1"), m.group("n2")
         v1.append(int(n1)), v2.append(int(n2))
 
+    # Instantiate a counter for v2
+    # Accumulate the v1*times it appears in v2
+    # take advantage of Counter defaulting to zero
     c = Counter(v2)
-
     distance = 0
     for k in v1:
         distance += (k * c[k])
