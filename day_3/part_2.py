@@ -7,4 +7,5 @@ def main(data: str) -> str:
 
 
 if __name__ == "__main__":
+    print(main(read_input(input_path(__file__).replace(".txt", "_practice.txt"))))
     print(main(read_input(input_path(__file__))))
