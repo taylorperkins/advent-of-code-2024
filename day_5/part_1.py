@@ -30,6 +30,24 @@ class Node:
 
 @time_it
 def main(data: str) -> int:
+    """Parse the input into rules and pages.
+    The value ordering within each page is determined
+    by the initial rules. Determine if the raw page is
+    sorted correctly based on the rules.
+
+    Solve through creating a pseudo-graph of the rules.
+    Each rule has two parts, like: `47|31`.
+    In this rule, 47 comes before 31.
+    Create a "node" of each side, and keep track of
+    this comparison. For node 47, note that it is lt node 31,
+    and vice-versa. Each node supports comparison operators
+    for measuring equality/lt/gt, etc. This makes it so that
+    if you have a list of nodes, you can just use the base-python
+    sorting to put them in the right order.
+
+    :param data:
+    :return int: the sum of the "middle" value for each correct page
+    """
 
     rules_raw, pages_raw = data.split("\n\n")
 
