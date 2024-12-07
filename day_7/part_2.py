@@ -31,7 +31,7 @@ def solve(
         return 0
     else:
         new_accumulations = []
-        for acc in calibration_accumulations:
+        for acc in sorted(calibration_accumulations, reverse=True):
             for op in operators:
                 result = op(acc, right)
                 if result == test_value:
