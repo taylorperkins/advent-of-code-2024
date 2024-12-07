@@ -24,22 +24,22 @@ def solve(
         If any exceed the test value, exclude it from remaining searches.
         If the result is less than the test value, recurse.
     """
+    try:
+        right = calibration_equations.pop(0)
     # you went through all possibles without solving
-    if not calibration_equations:
+    except IndexError:
         return 0
+    else:
+        new_accumulations = []
+        for acc in calibration_accumulations:
+            for op in operators:
+                result = op(acc, right)
+                if result == test_value:
+                    return test_value
+                if result < test_value:
+                    new_accumulations.append(result)
 
-    right = calibration_equations.pop(0)
-
-    new_accumulations = []
-    for acc in calibration_accumulations:
-        for op in operators:
-            result = op(acc, right)
-            if result == test_value:
-                return test_value
-            if result < test_value:
-                new_accumulations.append(result)
-
-    return solve(test_value, calibration_equations, new_accumulations)
+        return solve(test_value, calibration_equations, new_accumulations)
 
 
 @time_it
