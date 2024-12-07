@@ -48,9 +48,7 @@ def main(data: str) -> int:
 
     for line in data.splitlines():
         test_value, rest = line.split(":")
-        calibration_equations = list(map(int, rest.strip().split(" ")))
-
-        start = calibration_equations.pop(0)
+        start, *calibration_equations = map(int, rest.strip().split(" "))
 
         total += solve(
             int(test_value),
