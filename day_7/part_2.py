@@ -25,7 +25,7 @@ def solve(
         If the result is less than the test value, recurse.
     """
     # you went through all possibles without solving
-    if not calibration_equations or not calibration_accumulations:
+    if not calibration_equations:
         return 0
 
     right = calibration_equations.pop(0)
