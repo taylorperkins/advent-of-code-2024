@@ -65,7 +65,17 @@ class Region:
             for d in directions
         }
 
-        # determine the direction to traverse per neighbor
+        # a single "neighbor" plot can represent 4 perimeters
+        # so - keep track of the direction of the plot that the neighbor
+        # is touching.
+        # structure ends up like:
+        # {
+        #   <direction>: {
+        #       0: [1, 2, 5, 6, 7],
+        #       4: [5, 9, 10, 11],
+        #       ...
+        #   }, ...
+        # }
         for neighbor in self.neighbors:
             for d in horizontal_directions:
                 if neighbor.move(d) in self.plots:
@@ -75,6 +85,9 @@ class Region:
                 if neighbor.move(d) in self.plots:
                     dmap[d][neighbor.y].append(neighbor.x)
 
+        # for each direction/index combination, sort all the
+        # axes that fall along the index. Count the "splits"
+        # for that index, representing the perimeter
         perimeter = 0
         for _map in dmap.values():
             for axis, values in _map.items():
@@ -133,13 +146,16 @@ class Plane:
 def main(data: str) -> int:
     plane = Plane([list(p) for p in data.splitlines()])
 
+    # split the plane into "regions" by label
     regions: Dict[str, List[Region]] = {}
-
     for coord, plant in plane:
+
+        # create a new "region" of 1 plot
         if plant not in regions:
             regions[plant] = [Region(label=plant, plots={coord})]
             continue
 
+        # figure out if the plot can "merge" into an existing region
         neighboring_regions = []
         others = []
         for region in regions[plant]:
@@ -148,10 +164,13 @@ def main(data: str) -> int:
             else:
                 others.append(region)
 
+        # can't merge, create a new one
         if not neighboring_regions:
             regions[plant].append(Region(label=plant, plots={coord}))
             continue
 
+        # for all regions the plot is touching, add the plot to the
+        # region and merge all the regions
         merged_regions = reduce(
             lambda l, r: l.merge(r.add(coord)),
             neighboring_regions,
@@ -162,9 +181,7 @@ def main(data: str) -> int:
 
     total = 0
     for plant in regions:
-        # print(plant)
         for region in regions[plant]:
-            # print("\t", region.area, region.perimeter, region.neighbors)
             total += (region.area * region.perimeter)
 
     return total
