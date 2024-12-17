@@ -129,6 +129,7 @@ def race(
         ]:
             coord = reindeer.position.move(d)
             if _map.get(coord, default="#") != "#" and coord not in reindeer.path:
+                # insert based on the score to support priority processing
                 bisect.insort_left(
                     all_reindeer,
                     Reindeer(
@@ -139,11 +140,6 @@ def race(
                     ),
                     key=lambda r: r.score
                 )
-
-
-def get_best_reindeer():
-    pass
-
 
 
 @time_it
