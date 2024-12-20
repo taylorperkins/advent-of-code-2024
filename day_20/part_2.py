@@ -117,23 +117,18 @@ class Cheat:
     picoseconds: int
 
 
-def get_cheats(racetrack: Dict[Coord, int]) -> Generator[Cheat, None, None]:
-    race_finish = max(racetrack, key=lambda c: racetrack[c])
-    racetrack_size = racetrack[race_finish]
-
+def get_cheats(racetrack: Dict[Coord, int], plane: Plane) -> Generator[Cheat, None, None]:
     for start, start_position in racetrack.items():
-        if start == Coord(x=1, y=3):
-            pass
-
-        candidates = {(step, end) for (step, end) in start.expand(n=20) if end in racetrack}
+        candidates = (
+            (step, end)
+            for (step, end) in start.expand(n=20)
+            if plane.exists(end)
+        )
         for step, end in candidates:
-            end_position = racetrack[end]
+            end_position = racetrack.get(end, -1)
             time_saved = end_position - start_position - step
 
             if time_saved:
-                # if start == Coord(x=1, y=3):
-                #     print(start, end, time_saved)
-
                 yield Cheat(start, end, time_saved)
 
 
@@ -141,8 +136,7 @@ def get_cheats(racetrack: Dict[Coord, int]) -> Generator[Cheat, None, None]:
 def main(data: str) -> int:
     plane = Plane([list(line) for line in data.splitlines()])
     racetrack = get_racetrack(plane)
-    cheats = get_cheats(racetrack)
-
+    cheats = get_cheats(racetrack, plane)
     best_cheats = (c for c in cheats if c.picoseconds >= 100)
     return len(list(best_cheats))
 
