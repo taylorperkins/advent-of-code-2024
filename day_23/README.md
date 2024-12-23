@@ -1,3 +1,7 @@
+Advent of Code[About][Events][Shop][Settings][Log Out]Taylor Perkins 42*
+       y(2024)[Calendar][AoC++][Sponsors][Leaderboard][Stats]
+Our sponsors help make Advent of Code possible:
+Source Allies - Enjoy the gift of good code! Join experts who solve problems with an ownership mindset. Make a difference on day one, not one day!
 --- Day 23: LAN Party ---
 As The Historians wander around a secure area at Easter Bunny HQ, you come across posters for a LAN party scheduled for today! Maybe you can find it; you connect to a nearby datalink port and download a map of the local network (your puzzle input).
 
@@ -63,3 +67,31 @@ tb,vc,wq
 tc,td,wh
 td,wh,yn
 Find all the sets of three inter-connected computers. How many contain at least one computer with a name that starts with t?
+
+Your puzzle answer was 1170.
+
+The first half of this puzzle is complete! It provides one gold star: *
+
+--- Part Two ---
+There are still way too many results to go through them all. You'll have to find the LAN party another way and go there yourself.
+
+Since it doesn't seem like any employees are around, you figure they must all be at the LAN party. If that's true, the LAN party will be the largest set of computers that are all connected to each other. That is, for each computer at the LAN party, that computer will have a connection to every other computer at the LAN party.
+
+In the above example, the largest set of computers that are all connected to each other is made up of co, de, ka, and ta. Each computer in this set has a connection to every other computer in the set:
+
+ka-co
+ta-co
+de-co
+ta-ka
+de-ta
+ka-de
+The LAN party posters say that the password to get into the LAN party is the name of every computer at the LAN party, sorted alphabetically, then joined together with commas. (The people running the LAN party are clearly a bunch of nerds.) In this example, the password would be co,de,ka,ta.
+
+What is the password to get into the LAN party?
+
+Answer: 
+ 
+
+Although it hasn't changed, you can still get your puzzle input.
+
+You can also [Share] this puzzle.
