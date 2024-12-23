@@ -1,82 +1,59 @@
-from collections import deque, defaultdict
+from collections import defaultdict
 from typing import Generator, Tuple
 
 from utils import time_it, read_input, input_path
 
 
-def step_one(v: int) -> int:
-    return v * 64
-
-def step_two(v: int) -> int:
-    return int(v / 32)
-
-def step_three(v: int) -> int:
-    return v * 2048
-
-def mix(secret_number: int, v: int) -> int:
-    return secret_number ^ v
-
-def prune(secret_number: int):
-    return secret_number % 16777216
+PriceWindow = Tuple[int, int, int, int]
 
 
-def get_secret_numbers(secret_number):
+def get_secret_numbers(secret_number: int, n: int) -> Generator[int, None, None]:
     process = (
-        step_one, step_two, step_three
+        lambda v: v * 64,
+        lambda v: v // 32,
+        lambda v: v * 2048,
     )
 
-    while True:
-        for step in process:
-            result = step(secret_number)
-            secret_number = mix(secret_number, result)
-            secret_number = prune(secret_number)
+    yield secret_number
+
+    for _ in range(n):
+        for fn in process:
+            out = fn(secret_number)
+            secret_number = (secret_number ^ out) % 16777216
 
         yield secret_number
 
 
-def get_rolling_prices(
-    secret_number: int,
-    gen: Generator[int, None, None]
-) -> Generator[Tuple[Tuple[int, int, int, int], int], None, None]:
+def rolling(prices: Generator[int, None, None]) -> Generator[Tuple[PriceWindow, int], None, None]:
+    prices = list(prices)
+    deltas = [prices[i] - prices[i-1] for i in range(1, len(prices))]
 
-    queue = deque(maxlen=4)
-    prev_prices = set()
-
-    current_price = int(str(secret_number)[-1])
-
-    for sn in gen:
-        next_price = int(str(sn)[-1])
-
-        delta = next_price - current_price
-        current_price = next_price
-
-        queue.append(delta)
-
-        if len(queue) == 4:
-            _id = tuple(queue)
-            if _id not in prev_prices:
-                yield _id, current_price
-            prev_prices.add(_id)
+    seen = set()
+    for i in range(4, len(prices)):
+        _id = tuple(deltas[i-4:i])
+        price = prices[i]
+        if _id not in seen:
+            seen.add(_id)
+            yield _id, price
 
 
 @time_it
 def main(data: str) -> int:
-    secret_numbers = [int(line) for line in data.splitlines()]
 
-    best_prices = defaultdict(int)
+    buyers = (int(line) for line in data.splitlines())
 
-    for sn in secret_numbers:
-        gen = get_secret_numbers(sn)
-        rolling_prices = get_rolling_prices(sn, gen)
+    delta_count = defaultdict(int)
 
-        for _ in range(2000):
-            _id, price = next(rolling_prices)
-            best_prices[_id] += price
+    for i, sn in enumerate(buyers):
+        secret_numbers = get_secret_numbers(sn, n=2000)
+        prices = (n % 10 for n in secret_numbers)
 
-    return max(best_prices.values())
+        for _id, price in rolling(prices):
+            delta_count[_id] += price
+
+    return max(delta_count.values())
 
 
 if __name__ == "__main__":
     print(main(read_input(input_path(__file__).replace(".txt", "_practice.txt"))))
-    # 2168 -- too high
     print(main(read_input(input_path(__file__))))
