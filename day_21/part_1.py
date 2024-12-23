@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from functools import lru_cache
+from itertools import pairwise
 from typing import List, Dict, Optional
 
 from utils import time_it, read_input, input_path
@@ -137,6 +138,54 @@ class Keypad:
         return True
 
 
+DIRECTIONAL_KEYPAD = Keypad([
+    [None, "^", "A"],
+    ["<", "v", ">"],
+])
+
+
+class NumericKeypad(Keypad):
+
+    def shortest_path(self, start: Coord, end: Coord) -> List[str]:
+        if self.get_value(start) == "A" and self.get_value(end) == "4":
+            pass
+
+        directions = []
+
+        if start == end:
+            return directions
+
+        paths = self.get_paths(start, end)
+
+        # the "best path" is based on the shortest path(s)
+        # needed from the directional keypad.
+        weighted_paths = []
+        for path in paths:
+            # start and end at A
+            simulated_path = ["A"] + path
+            weight = 0
+            for s, e in pairwise(simulated_path):
+                sp = DIRECTIONAL_KEYPAD.shortest_path(
+                    DIRECTIONAL_KEYPAD[s],
+                    DIRECTIONAL_KEYPAD[e]
+                )
+                weight += len(sp)
+            weighted_paths.append((weight, path))
+
+
+        weight, directions = sorted(weighted_paths)[0]
+
+        print(f"Directions({self.get_value(start)}, {self.get_value(end)}): {directions} | {weight}")
+        return directions
+
+NUMERIC_KEYPAD = NumericKeypad([
+    ["7", "8", "9"],
+    ["4", "5", "6"],
+    ["1", "2", "3"],
+    [None, "0", "A"],
+])
+
+
 class Event(list):
     """Simple observer implementation.
 
@@ -233,17 +282,6 @@ class PressAccumulator:
     def press_handler(self, value):
         self.values.append(value)
 
-NUMERIC_KEYPAD = Keypad([
-    ["7", "8", "9"],
-    ["4", "5", "6"],
-    ["1", "2", "3"],
-    [None, "0", "A"],
-])
-
-DIRECTIONAL_KEYPAD = Keypad([
-    [None, "^", "A"],
-    ["<", "v", ">"],
-])
 
 @time_it
 def main(data: str) -> int:
