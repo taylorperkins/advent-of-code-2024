@@ -3,8 +3,8 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from functools import lru_cache
-from itertools import pairwise
-from typing import List, Dict, Optional
+from itertools import pairwise, product
+from typing import List, Dict, Optional, Tuple
 
 from utils import time_it, read_input, input_path
 
@@ -59,6 +59,20 @@ class Keypad:
                     self.value_map[coord] = value
                     self.coord_map[value] = coord
 
+        print("Initializing paths")
+        _ = self._get_shortest_paths()
+
+    @abc.abstractmethod
+    def path_weight(self, path: List[str]) -> int:
+        pass
+
+    def _get_shortest_paths(self) -> Dict[Tuple[Coord, Coord], List[str]]:
+        return {
+            (start, end): self.shortest_path(start, end)
+            # product to include identity A -> A
+            for start, end in product(self.value_map, repeat=2)
+        }
+
     def __getitem__(self, item: str) -> Coord:
         return self.coord_map[item]
 
@@ -73,32 +87,23 @@ class Keypad:
             return directions
 
         paths = self.get_paths(start, end)
-        sorted_path = sorted(paths[0])
 
-        weighted_paths = []
+        path_weights = [
+            self.path_weight(p)
+            for p in paths
+        ]
 
-        for sp in (sorted_path, sorted_path[::-1]):
-            if sp in paths:
-                d_weight = DIRECTION_WEIGHTS[sp[0]]
-                weighted_paths.append((d_weight, sp))
+        min_weight = min(path_weights)
+        acceptable_paths = [i for i, w in enumerate(path_weights) if w == min_weight]
 
-        if weighted_paths:
-            weighted_paths = sorted(weighted_paths)
-            directions = weighted_paths[0][1]
+        path = paths[acceptable_paths[0]]
 
-        else:
-            weighted_paths = sorted([
-                (
-                    [DIRECTION_WEIGHTS[d] for d in path],
-                    idx
-                )
-                for idx, path in enumerate(paths)
-            ])
-
-            directions = paths[weighted_paths[0][1]]
-
-        print(f"Directions({self.get_value(start)}, {self.get_value(end)}): {directions}")
-        return directions
+        print(f"""
+Shortest path for {self.get_value(start)} and {self.get_value(end)}: 
+    Score: {min_weight}
+    Path: {path}
+        """)
+        return path
 
     def get_paths(self, start: Coord, end: Coord) -> List[List[str]]:
         current_paths = [
@@ -138,45 +143,24 @@ class Keypad:
         return True
 
 
-DIRECTIONAL_KEYPAD = Keypad([
+class DirectionalKeypad(Keypad):
+    def path_weight(self, path: List[str]) -> int:
+        return sum(
+            self[s].distance(self[e])
+            for s, e in pairwise(["A"] + path + ["A"])
+        )
+
+
+DIRECTIONAL_KEYPAD = DirectionalKeypad([
     [None, "^", "A"],
     ["<", "v", ">"],
 ])
 
 
 class NumericKeypad(Keypad):
+    def path_weight(self, path: List[str]) -> int:
+        return DIRECTIONAL_KEYPAD.path_weight(path)
 
-    def shortest_path(self, start: Coord, end: Coord) -> List[str]:
-        if self.get_value(start) == "A" and self.get_value(end) == "4":
-            pass
-
-        directions = []
-
-        if start == end:
-            return directions
-
-        paths = self.get_paths(start, end)
-
-        # the "best path" is based on the shortest path(s)
-        # needed from the directional keypad.
-        weighted_paths = []
-        for path in paths:
-            # start and end at A
-            simulated_path = ["A"] + path
-            weight = 0
-            for s, e in pairwise(simulated_path):
-                sp = DIRECTIONAL_KEYPAD.shortest_path(
-                    DIRECTIONAL_KEYPAD[s],
-                    DIRECTIONAL_KEYPAD[e]
-                )
-                weight += len(sp)
-            weighted_paths.append((weight, path))
-
-
-        weight, directions = sorted(weighted_paths)[0]
-
-        print(f"Directions({self.get_value(start)}, {self.get_value(end)}): {directions} | {weight}")
-        return directions
 
 NUMERIC_KEYPAD = NumericKeypad([
     ["7", "8", "9"],
@@ -342,7 +326,8 @@ def main(data: str) -> int:
 
 
 if __name__ == "__main__":
-    print(main(read_input(input_path(__file__).replace(".txt", "_practice.txt"))))
+    out = main(read_input(input_path(__file__).replace(".txt", "_practice.txt")))
+    assert out == 126384, f"Expected 126384, got {out}"
     # 218300 - too high
     print("Real deal")
     print(main(read_input(input_path(__file__))))
