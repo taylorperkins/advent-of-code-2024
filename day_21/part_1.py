@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import abc
 from dataclasses import dataclass
-from functools import lru_cache
-from itertools import pairwise, product
-from typing import List, Dict, Optional, Tuple
+from functools import lru_cache, partial, reduce
+from itertools import pairwise
+from typing import List, Dict, Callable
 
-from utils import time_it, read_input, input_path
+from utils import read_input, input_path
 
 
 @dataclass
@@ -24,303 +23,132 @@ class Coord:
         return abs(self.x - other.x) + abs(self.y - other.y)
 
 
-DIRECTION_TO_LABEL = {
+DIRECTIONS = {
+    Coord(1, 0): ">",
+    Coord(0, 1): "v",
     Coord(-1, 0): "<",
     Coord(0, -1): "^",
-    Coord(1, 0):  ">",
-    Coord(0, 1): "v",
 }
-
-LABEL_TO_DIRECTION = {
-    "<": Coord(-1, 0),
-    "^": Coord(0, -1),
-    ">": Coord(1, 0),
-    "v": Coord(0, 1),
-}
-
-DIRECTION_WEIGHTS = {
-    "<": 3,
-    "v": 2,
-    "^": 1,
-    ">": 1
-}
-
 
 class Keypad:
-    def __init__(self, values: List[List[str]]):
-        self.value_map: Dict[Coord, str] = {}
-        # inverse of value_map
-        self.coord_map: Dict[str, Coord] = {}
+    def __init__(self, values: List[str], label: str):
+        self.label = label
 
-        for y, row in enumerate(values):
-            for x, value in enumerate(row):
-                if value is not None:
-                    coord = Coord(x, y)
-                    self.value_map[coord] = value
-                    self.coord_map[value] = coord
+        self._coord_values: Dict[Coord, str] = {}
+        self._value_coords: Dict[str, Coord] = {}
 
-        print("Initializing paths")
-        _ = self._get_shortest_paths()
+        for y, line in enumerate(values):
+            for x, value in enumerate(line):
+                self._coord_values[Coord(x, y)] = value
+                self._value_coords[value] = Coord(x, y)
 
-    @abc.abstractmethod
-    def path_weight(self, path: List[str]) -> int:
-        pass
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            return self._value_coords.get(item, None)
+        return self._coord_values.get(item, "#")
 
-    def _get_shortest_paths(self) -> Dict[Tuple[Coord, Coord], List[str]]:
-        return {
-            (start, end): self.shortest_path(start, end)
-            # product to include identity A -> A
-            for start, end in product(self.value_map, repeat=2)
-        }
-
-    def __getitem__(self, item: str) -> Coord:
-        return self.coord_map[item]
-
-    def get_value(self, coord: Coord) -> Optional[str]:
-        return self.value_map.get(coord)
+    def __repr__(self):
+        return f"Keypad({self.label})"
 
     @lru_cache
-    def shortest_path(self, start: Coord, end: Coord) -> List[str]:
-        directions = []
-
+    def get_paths(self, start: str, end: str) -> List[str]:
         if start == end:
-            return directions
+            return []
 
-        paths = self.get_paths(start, end)
-
-        path_weights = [
-            self.path_weight(p)
-            for p in paths
-        ]
-
-        min_weight = min(path_weights)
-        acceptable_paths = [i for i, w in enumerate(path_weights) if w == min_weight]
-
-        path = paths[acceptable_paths[0]]
-
-        print(f"""
-Shortest path for {self.get_value(start)} and {self.get_value(end)}: 
-    Score: {min_weight}
-    Path: {path}
-        """)
-        return path
-
-    def get_paths(self, start: Coord, end: Coord) -> List[List[str]]:
-        current_paths = [
-            {
-                "tail": start,
-                "directions": []
-            }
-        ]
-
+        current_paths = [(self[start], "",)]
         final_paths = []
+
         while current_paths:
-            path = current_paths.pop(0)
-            coord = path["tail"]
+            coord, path = current_paths.pop(0)
+            current_distance = self[end].distance(coord)
 
-            if coord == end:
-                final_paths.append(path["directions"])
-                continue
+            for direction, label in DIRECTIONS.items():
+                neighbor_coord = coord.move(direction)
+                neighbor = self[neighbor_coord]
 
-            distance = end.distance(coord)
-            for direction, label in DIRECTION_TO_LABEL.items():
-                neighbor = coord.move(direction)
-                if end.distance(neighbor) < distance and self.get_value(neighbor) is not None:
-                    current_paths.append({
-                        "tail": neighbor,
-                        "directions": path["directions"] + [label]
-                    })
+                if neighbor == end:
+                    final_paths.append(path + label)
+                elif neighbor != "#" and self[end].distance(neighbor_coord) < current_distance:
+                    current_paths.append((self[neighbor], path + label))
 
         return final_paths
 
-    def is_valid_path(self, start: Coord, path: List[str]) -> bool:
-        current = start
-        for d in path:
-            direction = LABEL_TO_DIRECTION[d]
-            current = current.move(direction)
-            if self.get_value(current) is None:
-                return False
-        return True
+
+DIRECTIONAL_KEYPAD = Keypad([
+    "#^A",
+    "<v>",
+], label="Directional")
+
+NUMERIC_KEYPAD = Keypad([
+    "789",
+    "456",
+    "123",
+    "#0A",
+], label="Numeric")
 
 
-class DirectionalKeypad(Keypad):
-    def path_weight(self, path: List[str]) -> int:
-        return sum(
-            self[s].distance(self[e])
-            for s, e in pairwise(["A"] + path + ["A"])
+def append_submit(value: str) -> str:
+    if not value.startswith("A"):
+        value = "A" + value
+    if not value.endswith("A"):
+        value += "A"
+
+    return value
+
+
+@lru_cache
+def output_layer(start: str, end: str) -> int:
+    weight = DIRECTIONAL_KEYPAD[start].distance(DIRECTIONAL_KEYPAD[end])
+    print(f"{start}, {end}: {weight}")
+    return weight
+
+
+def input_layer(keypad: Keypad, next_layer: Callable[[str], int], start: str, end: str) -> int:
+
+
+    weight = 0
+    if start == end:
+        weight += next_layer(start=start, end=end)
+        return weight
+
+    paths = keypad.get_paths(start, end)
+
+    weights = []
+    for path in paths:
+        # measure the weight of each path
+        path = path + "A"
+
+        weight = sum(
+            next_layer(start=s, end=e)
+            for s, e in pairwise(path)
         )
 
+        weights.append(weight)
 
-DIRECTIONAL_KEYPAD = DirectionalKeypad([
-    [None, "^", "A"],
-    ["<", "v", ">"],
-])
+    return min(weights)
 
 
-class NumericKeypad(Keypad):
-    def path_weight(self, path: List[str]) -> int:
-        return DIRECTIONAL_KEYPAD.path_weight(path)
-
-
-NUMERIC_KEYPAD = NumericKeypad([
-    ["7", "8", "9"],
-    ["4", "5", "6"],
-    ["1", "2", "3"],
-    [None, "0", "A"],
-])
-
-
-class Event(list):
-    """Simple observer implementation.
-
-    Publishers initialize an Event, and call the event as
-    necessary.
-
-    Subscribers add functions to the publishers event, which
-    will get called as events occur.
-    """
-    def __call__(self, *args, **kwargs):
-        for fn in self:
-            fn(*args, **kwargs)
-
-
-class Operator(metaclass=abc.ABCMeta):
-    def __init__(self, keypad: Keypad, name: str):
-        self.name = name
-        self.keypad = keypad
-        self.position = self.keypad["A"]
-
-        self.press_event = Event()
-        self.request_event = Event()
-
-    def __repr__(self):
-        return f"Operator({self.name}, {self.value})"
-
-    @property
-    def value(self):
-        return self.keypad.get_value(self.position)
-
-    @abc.abstractmethod
-    def handle_request(self, command: str):
-        pass
-
-
-class Human(Operator):
-
-    def handle_request(self, command: str):
-        """Receive a request from a robot.
-        The human doesn't actually have to do anything other
-        than "press" the buttons received. So, this becomes
-        a really simple handler.
-        """
-        self.press_event(command)
-
-
-class Robot(Operator):
-
-    def handle_request(self, command: str):
-        """Goes through the process of requesting to move to
-        command position, then requesting to press once has
-        been moved.
-
-        :param command:
-        :return:
-        """
-        target = self.keypad[command]
-
-        for direction in self.keypad.shortest_path(self.position, target):
-            self.request_event(direction)
-
-        assert self.value == command
-
-        # now that we're at the position, request to press it.
-        self.request_event("A")
-
-    def handle_press(self, command):
-        if command == "A":
-            self.press_event(self.value)
-            return
-
-        match command:
-            case "^": d = Coord(0, -1)
-            case ">": d = Coord(1, 0)
-            case "v": d = Coord(0, 1)
-            case "<": d = Coord(-1, 0)
-            case _: raise Exception("Unexpected direction")
-
-        self.position = self.position.move(d)
-
-
-class SequenceCounter:
-    def __init__(self):
-        self.total = 0
-
-    def handle_press(self, _):
-        self.total += 1
-
-
-class PressAccumulator:
-    def __init__(self):
-        self.values = []
-
-    def press_handler(self, value):
-        self.values.append(value)
-
-
-@time_it
 def main(data: str) -> int:
+    layers = [
+        partial(input_layer, keypad=NUMERIC_KEYPAD),
+        partial(input_layer, keypad=DIRECTIONAL_KEYPAD),
+        partial(input_layer, keypad=DIRECTIONAL_KEYPAD),
+    ]
+
+    process = reduce(
+        lambda l, r: partial(r, next_layer=l),
+        layers[::-1],
+        output_layer
+    )
 
     total = 0
-    for code in data.splitlines():
-        sequence_counter = SequenceCounter()
-
-        robot_1 = Robot(keypad=NUMERIC_KEYPAD, name="Robot 1")
-        robot_2 = Robot(keypad=DIRECTIONAL_KEYPAD, name="Robot 2")
-        robot_3 = Robot(keypad=DIRECTIONAL_KEYPAD, name="Robot 3")
-
-        human = Human(keypad=DIRECTIONAL_KEYPAD, name="Human")
-
-        r1_pa = PressAccumulator()
-        r2_pa = PressAccumulator()
-        r3_pa = PressAccumulator()
-        h_pa = PressAccumulator()
-
-        robot_1.press_event.append(r1_pa.press_handler)
-        robot_2.press_event.append(r2_pa.press_handler)
-        robot_3.press_event.append(r3_pa.press_handler)
-        human.press_event.append(h_pa.press_handler)
-
-        robot_1.request_event.append(robot_2.handle_request)
-        robot_2.press_event.append(robot_1.handle_press)
-
-        robot_2.request_event.append(robot_3.handle_request)
-        robot_3.press_event.append(robot_2.handle_press)
-
-        robot_3.request_event.append(human.handle_request)
-        human.press_event.append(robot_3.handle_press)
-
-        human.press_event.append(sequence_counter.handle_press)
-
-        for value in code:
-            robot_1.handle_request(value)
-
-        # for label, pa in (
-        #     ("Robot 1", r1_pa),
-        #     ("Robot 2", r2_pa),
-        #     ("Robot 3", r3_pa),
-        #     ("Human", h_pa),
-        # ):
-        #     print(label)
-        #     for i, d in enumerate(''.join(pa.values).split('A')):
-        #         print(f"\t{i+1}: {d}")
-
-        print(f"Robot 1: {''.join(r1_pa.values)}")
-        print(f"Robot 2: {''.join(r2_pa.values)}")
-        print(f"Robot 3: {''.join(r3_pa.values)}")
-        print(f"Human: {''.join(h_pa.values)}")
-
-        print("\n", sequence_counter.total, code[:-1])
-        total += (sequence_counter.total * int(code[:-1]))
+    for line in data.splitlines():
+        weight = 0
+        for start, end in pairwise("A" + line):
+            weight += process(start=start, end=end)
+        code_value = int(line[:-1])
+        print(f"{line}: {weight} - {code_value}")
+        total += (weight * code_value)
 
     return total
 
