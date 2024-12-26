@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache, partial, reduce
-from itertools import pairwise
+from itertools import pairwise, product
 from typing import List, Dict, Callable
 
 from utils import read_input, input_path
@@ -97,33 +97,50 @@ def append_submit(value: str) -> str:
 
 
 @lru_cache
-def output_layer(start: str, end: str) -> int:
-    weight = DIRECTIONAL_KEYPAD[start].distance(DIRECTIONAL_KEYPAD[end])
-    print(f"{start}, {end}: {weight}")
+def output_layer(_input: str) -> int:
+    """Just count all the directions that the previous layer requests"""
+    weight = len(_input)
     return weight
 
 
-def input_layer(keypad: Keypad, next_layer: Callable[[str], int], start: str, end: str) -> int:
+def input_layer(_input: str, keypad: Keypad, next_layer: Callable[[str], int]) -> int:
+    """Calculates the "weight" of `_input`.
 
+    Each `_input` represents "stops" within `keypad`. Implicitly, each `_input`
+    starts at "A".
 
-    weight = 0
-    if start == end:
-        weight += next_layer(start=start, end=end)
-        return weight
+    `_inputs` represent stops along _any_ keypad, numeric or directional.
+    For example:
+        029A -> (A -> 0), (0 -> 2), (2 -> 9), (9 -> A)
+        <A   -> (A -> <), (< -> A)
+        ^A   -> (A -> ^), (^ -> A)
+        ^>^A -> (A -> ^), (^ -> >), (> -> ^), (^ -> A)
+        vvvA -> (A -> v), (v -> v), (v -> v), (v -> A)
 
-    paths = keypad.get_paths(start, end)
+    And so on. This layer is responsible for splitting `_input` into it's respective
+    start/stop pairs, calculating the possible paths of each start/stop pair,
+    gathering the weights of each of those paths (through passing along to `next_layer`),
+    then sorting paths by sub-path weights. Return the weight of the smallest path.
+    """
+    weights = [0]
 
-    weights = []
-    for path in paths:
-        # measure the weight of each path
-        path = path + "A"
+    for start, end in pairwise("A" + _input):
+        current_path_weights = []
 
-        weight = sum(
-            next_layer(start=s, end=e)
-            for s, e in pairwise(path)
-        )
+        if start == end:
+            # just account for the "A" prefix
+            current_path_weights.append(1)
+        else:
+            for path in keypad.get_paths(start, end):
+                current_path_weights.append(next_layer(path + "A"))
 
-        weights.append(weight)
+        assert len(current_path_weights) >= 1
+
+        # account for branching paths
+        weights = [
+            l + r
+            for l, r in product(weights, current_path_weights)
+        ]
 
     return min(weights)
 
@@ -143,9 +160,7 @@ def main(data: str) -> int:
 
     total = 0
     for line in data.splitlines():
-        weight = 0
-        for start, end in pairwise("A" + line):
-            weight += process(start=start, end=end)
+        weight = process(_input=line)
         code_value = int(line[:-1])
         print(f"{line}: {weight} - {code_value}")
         total += (weight * code_value)
@@ -156,6 +171,6 @@ def main(data: str) -> int:
 if __name__ == "__main__":
     out = main(read_input(input_path(__file__).replace(".txt", "_practice.txt")))
     assert out == 126384, f"Expected 126384, got {out}"
-    # 218300 - too high
+    # 213536
     print("Real deal")
     print(main(read_input(input_path(__file__))))
