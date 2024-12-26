@@ -108,7 +108,7 @@ def search(i: int, level: int, program: List[int]) -> Generator[int, None, None]
 
     The important bit is step 4, the A transformation. 2**3 == 8, so each iteration in the
     search will reverse this operation, multiplying A by 8. We can always count on A*8 being
-    the lowest possible value for that level, so just while loop starting at that position,
+    the lowest possible value for that level, so set the while loop starting at that position,
     searching for the next possible base. Since the output is B%8, you can go up indefinitely
     starting at A*8.
 
