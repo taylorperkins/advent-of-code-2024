@@ -87,15 +87,6 @@ NUMERIC_KEYPAD = Keypad([
 ], label="Numeric")
 
 
-def append_submit(value: str) -> str:
-    if not value.startswith("A"):
-        value = "A" + value
-    if not value.endswith("A"):
-        value += "A"
-
-    return value
-
-
 @lru_cache
 def output_layer(_input: str) -> int:
     """Just count all the directions that the previous layer requests"""
