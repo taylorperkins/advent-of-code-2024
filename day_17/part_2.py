@@ -95,6 +95,27 @@ class Computer:
 
 
 def search(i: int, level: int, program: List[int]) -> Generator[int, None, None]:
+    """Attempts to re-create the "program" through the outputs of the computer.
+    Really only specific to the actual input for the part.
+
+    Formula ends up being:
+        Given A:
+            1. B = (A % 8) ^ 1
+            2. C = A // 2**B
+            3. B = (B ^ C) ^ 4
+            4. A = A // 2**3
+            5. OUT[B % 8]
+
+    The important bit is step 4, the A transformation. 2**3 == 8, so each iteration in the
+    search will reverse this operation, multiplying A by 8. We can always count on A*8 being
+    the lowest possible value for that level, so just while loop starting at that position,
+    searching for the next possible base. Since the output is B%8, you can go up indefinitely
+    starting at A*8.
+
+    The first yield in the generator is the lowest possible A value.
+
+    :return:
+    """
     expected = program[-level:]
 
     j = 0
