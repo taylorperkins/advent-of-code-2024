@@ -5,7 +5,7 @@ from functools import lru_cache, partial, reduce
 from itertools import pairwise, product
 from typing import List, Dict, Callable
 
-from utils import read_input, input_path
+from utils import read_input, input_path, time_it
 
 
 @dataclass
@@ -103,6 +103,7 @@ def output_layer(_input: str) -> int:
     return weight
 
 
+@lru_cache
 def input_layer(_input: str, keypad: Keypad, next_layer: Callable[[str], int]) -> int:
     """Calculates the "weight" of `_input`.
 
@@ -145,6 +146,7 @@ def input_layer(_input: str, keypad: Keypad, next_layer: Callable[[str], int]) -
     return min(weights)
 
 
+@time_it
 def main(data: str) -> int:
     layers = [
         partial(input_layer, keypad=NUMERIC_KEYPAD),
